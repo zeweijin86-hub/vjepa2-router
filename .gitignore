@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Training outputs & data
+runs/
+checkpoints/
+data/
+*.pt
+*.pth
+*.ckpt
+predictions.txt
+log_r*.csv
+
+# OS & editor files
+.DS_Store
+__MACOSX/
+._*
+.vscode/
+.idea/
