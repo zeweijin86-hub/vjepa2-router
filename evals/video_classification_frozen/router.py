@@ -108,7 +108,8 @@ def differentiable_diversity_loss(
     """
     num_classes = head_prob.shape[-1]
     if peer_probs_detached.shape[0] == 0 or num_classes <= 2:
-        return _zero_with_grad(head_prob)
+        return head_prob.sum() * 0.0
+        #return _zero_with_grad(head_prob)
 
     non_target_mask = (~F.one_hot(labels.long(), num_classes=num_classes).bool()).to(dtype=head_prob.dtype)
     head_nt = head_prob * non_target_mask
@@ -117,7 +118,8 @@ def differentiable_diversity_loss(
     # Filter out saturated zero-norm non-target vectors to keep backward gradients strictly finite
     valid = (head_nt.detach().norm(dim=-1) > norm_eps) & (peer_mean.norm(dim=-1) > norm_eps)
     if not valid.any():
-        return _zero_with_grad(head_prob)
+        return head_prob.sum() * 0.0
+        #return _zero_with_grad(head_prob)
 
     sim = F.cosine_similarity(head_nt[valid], peer_mean[valid], dim=-1)
     return sim.mean()
