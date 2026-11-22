@@ -1,4 +1,12 @@
-# Core dependencies for the frozen video-classification overlay
+# Full dependency set for running the frozen video-classification evaluator.
+#
+# You do NOT need this file to use or test the router: router.py, losses.py and
+# tests/ depend only on PyTorch. Install it only when you want to run the full
+# evaluator against real video data (decord and opencv-python are the heavy,
+# platform-sensitive ones).
+#
+# Minimal setup for the router and its unit tests:
+#     pip install torch
 torch>=2.0
 torchvision
 numpy
