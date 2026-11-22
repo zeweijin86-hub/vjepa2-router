@@ -113,10 +113,10 @@ python -m evals.main --fname configs/eval/vitl/vitl_router.yaml --devices cuda:0
 python -m evals.main --fname configs/eval/vitl/vitl_router.yaml --devices cuda:0 --infer_only
 ```
 
-### Standalone `HeadRouter` & Unit Tests
-
-See [30-second quickstart](#30-second-quickstart). `router.py` and `losses.py` require only PyTorch, so both the router and the test suite run without cloning upstream `vjepa2`; CI runs them on Python 3.10–3.12 against CPU-only PyTorch.
+**Standalone use.** See the [30-second quickstart](#30-second-quickstart). `router.py` and `losses.py` require only PyTorch, so both the router and the test suite run without cloning upstream `vjepa2`; CI runs them on Python 3.10–3.12 against CPU-only PyTorch.
 
 ## Attribution & License
 
 The frozen video encoder, attentive probe architecture, and base evaluation loop originate from [facebookresearch/vjepa2](https://github.com/facebookresearch/vjepa2). Modified upstream source files retain Meta Platforms' original copyright notice under the [MIT License](LICENSE).
+
+`LICENSE` carries Meta's notice because it covers those upstream-derived files. Files added by this overlay — `evals/video_classification_frozen/router.py`, `losses.py`, `tests/`, `configs/eval/vitl/vitl_router.yaml`, and `patches/` — are released under the same MIT terms, © 2026 Zewei Jin.
