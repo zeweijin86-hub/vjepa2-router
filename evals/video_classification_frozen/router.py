@@ -70,6 +70,18 @@ def compute_difficulty_weights(
     return sample_weights, hard_mask
 
 
+def _zero_with_grad(reference: Tensor) -> Tensor:
+    """Return a zero scalar that still participates in autograd.
+
+    A plain ``new_zeros(())`` detaches from the graph, so calling ``backward()`` on a
+    loss that happens to be that zero (for example when every sample is saturated and
+    filtered out) raises "element 0 of tensors does not require grad". Multiplying the
+    reference tensor by ``0.0`` keeps the value at exactly zero while preserving a
+    valid gradient path, so the training loop never has to special-case this branch.
+    """
+    return reference.sum() * 0.0
+
+
 def differentiable_diversity_loss(
     head_prob: Tensor,
     peer_probs_detached: Tensor,
@@ -96,7 +108,7 @@ def differentiable_diversity_loss(
     """
     num_classes = head_prob.shape[-1]
     if peer_probs_detached.shape[0] == 0 or num_classes <= 2:
-        return head_prob.new_zeros(())
+        return _zero_with_grad(head_prob)
 
     non_target_mask = (~F.one_hot(labels.long(), num_classes=num_classes).bool()).to(dtype=head_prob.dtype)
     head_nt = head_prob * non_target_mask
@@ -105,7 +117,7 @@ def differentiable_diversity_loss(
     # Filter out saturated zero-norm non-target vectors to keep backward gradients strictly finite
     valid = (head_nt.detach().norm(dim=-1) > norm_eps) & (peer_mean.norm(dim=-1) > norm_eps)
     if not valid.any():
-        return head_prob.new_zeros(())
+        return _zero_with_grad(head_prob)
 
     sim = F.cosine_similarity(head_nt[valid], peer_mean[valid], dim=-1)
     return sim.mean()
