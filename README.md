@@ -1,10 +1,37 @@
 # Per-Video Classifier Routing for V-JEPA 2
 
+> A drop-in overlay on Meta's frozen V-JEPA 2 video classifier that replaces "keep the single best probe" with per-video routing across all probes.
+
+[![tests](https://github.com/zeweijin86-hub/vjepa2-router/actions/workflows/tests.yml/badge.svg)](https://github.com/zeweijin86-hub/vjepa2-router/actions/workflows/tests.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![upstream](https://img.shields.io/badge/upstream-vjepa2%40204698b4-lightgrey)](https://github.com/facebookresearch/vjepa2)
+
+**Status:** research prototype · unit-tested on CPU · patch pinned to upstream `204698b4` · an overlay, not a fork
+
 This repository is a minimal, self-contained overlay on top of Meta's frozen [V-JEPA 2](https://github.com/facebookresearch/vjepa2) video-classification evaluator (`evals/video_classification_frozen/eval.py`). Instead of training `H` independent attentive probes and retaining only the single highest-scoring head, this extension combines:
 
 * **FP32-safe Focal Loss with optional dynamic difficulty weighting** (`focal_gamma`, `use_difficulty_weighting`) to concentrate probe capacity on misclassified and low-confidence clips.
 * **Non-target inter-probe diversity regularization** (for multiclass tasks with `C >= 3`) against detached peers, keeping per-probe DDP autograd graphs independent without conflicting with ground-truth supervision.
 * **Per-video probability-level stacking router (`HeadRouter`)** trained with exact mixture negative log-likelihood on deduplicated, stratified validation splits, with joint-atomic `best_probes.pt` checkpointing, read-only `--val_only` evaluation, and distributed `--infer_only` inference.
+
+## 30-second quickstart
+
+`router.py` and `losses.py` depend only on PyTorch, so the router can be used without checking out upstream V-JEPA 2:
+
+```python
+import torch
+from evals.video_classification_frozen.router import HeadRouter
+
+probs = torch.randn(4, 20, 2).softmax(dim=-1)   # [B, H, C] per-probe probabilities
+router = HeadRouter(num_heads=20, num_classes=2).eval()
+with torch.no_grad():
+    weights = router(probs)                                # [B, H] per-video head weights
+    fused = (probs * weights.unsqueeze(-1)).sum(dim=1)     # [B, C] routed probabilities
+```
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Data Flow
 
@@ -24,6 +51,16 @@ flowchart TD
     S --> R["HeadRouter MLP (LayerNorm + Dropout): soft weights [B, H], NLL loss"]
     R --> F["Same-split comparison + joint-atomic best_probes.pt (with embedded router)"]
 ```
+
+## Results
+
+A quantitative comparison on a held-out manifest is in progress and will be filled in only after it is measured with the `--val_only` path on data that was never used for epoch selection.
+
+| Dataset | Classes | Probes | Best single probe | Uniform ensemble | HeadRouter |
+| --- | --- | --- | --- | --- | --- |
+| _pending_ | | | | | |
+
+All three columns are computed on the identical `router_val` split, so the comparison is apples-to-apples by construction rather than by luck of the split.
 
 ## Key Design Decisions & Scope
 
@@ -78,24 +115,7 @@ python -m evals.main --fname configs/eval/vitl/vitl_router.yaml --devices cuda:0
 
 ### Standalone `HeadRouter` & Unit Tests
 
-`router.py` and `losses.py` require only PyTorch and can be used or tested directly from this repository without cloning upstream `vjepa2`:
-
-```python
-import torch
-from evals.video_classification_frozen.router import HeadRouter
-
-probs = torch.randn(4, 20, 2).softmax(dim=-1)  # [B, H, C]
-router = HeadRouter(num_heads=20, num_classes=2).eval()
-with torch.no_grad():
-    weights = router(probs)                                    # [B, H]
-    fused_probs = (probs * weights.unsqueeze(-1)).sum(dim=1)   # [B, C]
-```
-
-Run the unit test suite:
-
-```bash
-python -m unittest discover -s tests -v
-```
+See [30-second quickstart](#30-second-quickstart). `router.py` and `losses.py` require only PyTorch, so both the router and the test suite run without cloning upstream `vjepa2`; CI runs them on Python 3.10–3.12 against CPU-only PyTorch.
 
 ## Attribution & License
 
